@@ -59,3 +59,16 @@ Si quieres correr pruebas automatizadas con distintos tamaños de memoria (`--si
 Corre un job por core físico (evita hermanos SMT, que comparten L1/L2), cada uno pineado con `taskset`. Imprime el CSV por pantalla y lo guarda en `results.csv` con columnas `size,ops` (OPS como número plano). Tarda unos 20 segundos en un equipo de 6 cores.
 
 Los jobs en paralelo siguen compartiendo la L3, así que los valores de `--size` grandes (los que superan la L2) salen algo pesimistas.
+
+## Medir el escalado
+
+```bash
+./run_scaling.sh
+```
+
+Corre el simulador con 1, 2, 3, 4, 6, 8, 12, … hasta `nproc` threads (potencias de 2 y sus intermedios, más la cantidad de cores físicos) (`OMP_NUM_THREADS=N --workers N`), en serie, y guarda en `scaling.csv` las columnas `threads,ops,speedup,efficiency`. Usa los flags del comando final de la demo (`--checkpoint-dir /dev/shm --checkpoint-interval 5 --size 2048`), 5 s por corrida: ~40 s con 12 threads, ~1.5 min con 128.
+
+- Variables: `SIZE`, `DURATION`, `MAX_THREADS`. Ej: `SIZE=1048576 ./run_scaling.sh`.
+- Los argumentos extra se pasan al binario después de los de por defecto, así que los pisan. Ej: `./run_scaling.sh --checkpoint-dir .tmp` para escribir los checkpoints a disco en vez de RAM.
+
+Cada worker tiene su propio arreglo, así que es escalado débil: el problema total crece con los workers.

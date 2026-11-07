@@ -76,7 +76,11 @@ Los demás campos (`spinningthreads`, `needspinning`, `idlethreads`, `schedticks
 - `strace -f -e signal=none -e trace=openat,fsync -T -p $(pgrep simuleta)`: se ve dónde escribe (`.tmp/checkpoint_worker_*.tmp`) y cuánto tarda cada `fsync`.
 - `strace -f -e signal=none -c -p $(pgrep simuleta)` (cortar con Ctrl-C): `fsync` y `write` dominan el tiempo de syscalls.
 - El `-e signal=none` oculta los `SIGURG`: es el scheduler de Go interrumpiendo goroutines que llevan más de 10 ms corriendo (preempción). Es normal.
-- `iostat --human 1`: sube en cada checkpoint y desaparece con `/dev/shm`.
+- Si el directorio es NFS (`findmnt -T .` lo dice), `iostat` no lo ve. Usar:
+  - `nfsiostat 1`: kB/s escritos y latencia (RTT) por montaje; picos en cada checkpoint, desaparecen con `/dev/shm`.
+  - `pidstat -d 1 -p $(pgrep simuleta)`: kB/s escritos por el proceso.
+  - `sar -n DEV 1` o `nload`: los checkpoints como ráfagas de red ("el disco es la red").
+  - Con NFS el `fsync` espera al servidor: en `strace -T` y en `-vvv` se ve todavía más caro.
 - `htop`: todos los cores caen juntos durante el checkpoint (las barreras hacen que todos esperen al más lento).
 - `-vv` muestra dónde y cada cuánto escribe los checkpoints, más los logs de las barreras. `-vvv` agrega por worker cuánto tardó cada fase: si `fsync` domina, el problema es el disco; si `barrera1`/`barrera2` son altos, hay workers esperando al más lento.
 
@@ -84,6 +88,30 @@ Los demás campos (`spinningthreads`, `needspinning`, `idlethreads`, `schedticks
 - `lscpu -C` y la tabla de arriba.
 - `perf stat -e cache-misses,L1-dcache-load-misses ./simuleta --size 65536 --duration 5` contra `--size 2048` (si `perf` está instalado).
 - `./run_benchmark.sh` muestra la curva completa (~20 s).
+
+## Escalado (después del paso 5)
+
+`./run_scaling.sh` corre con 1, 2, 3, 4, 6, 8, 12… hasta N threads y los flags optimizados (~40 s con 12, ~1.5 min con 128). Lo interesante es comparar tamaños:
+
+```bash
+./run_scaling.sh                    # comando final: size 2048 (L1), checkpoints a /dev/shm
+SIZE=1048576 ./run_scaling.sh       # 8 MB por worker, no cabe en caché
+./run_scaling.sh --checkpoint-dir .tmp   # checkpoints a disco en vez de RAM (en NFS: peor)
+```
+
+Medido en el Ryzen 5 1600 (6 cores, 12 threads), speedup con 12 threads:
+
+| Caso | Speedup | Eficiencia | Por qué |
+|------|---------|------------|---------|
+| `size 2048` (L1) | 11.3× | 94% | cada worker trabaja en su caché, casi no comparten nada |
+| `size 65536` (L2) | 9.1× | 76% | pasando los 6 threads, los hermanos SMT comparten L2 |
+| `size 1048576` (RAM) | 2.7× | 23% | todos compiten por el ancho de banda de memoria |
+| checkpoints a disco | 9.6× | 80% | el disco es compartido; en NFS se espera mucho peor |
+
+Puntos para la charla:
+- **Más cores no es más rápido si el recurso compartido (memoria, disco, red) es el cuello de botella.**
+- Con `size 2048` escala casi lineal **incluso con SMT**: el loop espera la latencia de memoria y mientras un hilo espera, su hermano usa el core. Con código limitado por cómputo, SMT rinde mucho menos.
+- Es escalado débil: cada worker trae su propio arreglo, el problema total crece.
 
 ## "¿Por qué no usás `--disable-checkpoints`?"
 

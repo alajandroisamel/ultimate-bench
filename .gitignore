@@ -1,3 +1,4 @@
 .tmp
 results.csv
 .venv
+scaling*.csv

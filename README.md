@@ -17,18 +17,36 @@ Puedes ejecutar el simulador directamente. Las flags o opciones más importantes
 - `-duration`: Duración de la simulación en segundos (por defecto `10`).
 - `-workers`: Cantidad de rutinas/workers concurrentes a ejecutar (por defecto `1`).
 - `-p`: Tamaño del problema o arreglo por iteración. Afecta directamente los saltos de memoria y los posibles *cache misses* (por defecto `8192`).
-- `-disable-checkpoints`: Flag booleano para deshabilitar por completo la escritura de archivos temporales al disco. Útil si solo te interesa testear CPU/RAM y no I/O.
-- `-checkpoint-dir`: Directorio absoluto donde se guardarán los checkpoints (por defecto la carpeta actual).
+- `-checkpoint-dir`: Directorio donde se guardarán los checkpoints (por defecto `.tmp/` dentro del directorio actual).
 - `-checkpoint-interval`: Cada cuántos segundos hacer un checkpoint a disco (por defecto `2`).
-- `-v`: Modo verboso. Útil para debugear las barreras de sincronización.
+- `-v`, `-vv`, `-vvv`: Modo verboso, acumulable (también vale `-v -v`):
+  - `-v` (info): Pid, tamaño del problema, workers y threads (con el valor de `OMP_NUM_THREADS`).
+  - `-vv` (debug): además, la configuración de checkpoints (directorio e intervalo) y los logs de las barreras de sincronización.
+  - `-vvv` (trace): además, por cada worker y checkpoint, el tiempo de espera en cada barrera, de `write` y de `fsync`.
 
+  Los niveles están pensados para la demo: `-v` no menciona los checkpoints, para no adelantar ese paso.
 
-Comando ~óptimo
+El resto de las flags que aparecen en `--help` (`-engine`, `-use-gpu`, `-mesh-size`, etc.) son decorativas: no hacen nada.
+
+### Variables de entorno
+
+- `OMP_NUM_THREADS`: cantidad de threads (cores) que puede usar el simulador. **Si no está definida, el simulador usa 1 solo core**, sin importar cuántos `-workers` se pidan. Internamente se traduce a `GOMAXPROCS`; la variable `GOMAXPROCS` en sí se ignora a propósito.
+
+### Flags ocultas
+
+No aparecen en `--help` a propósito, para que el público no las vea durante la demo:
+
+- `-disable-checkpoints`: deshabilita por completo la escritura de checkpoints. La usa `run_benchmark.sh` para medir solo CPU/memoria.
+
+## Guía de la demo
+
+Ver [MACHETE.md](MACHETE.md): los pasos de la demo, qué herramienta mostrar en cada uno y la respuesta a "¿por qué no deshabilitar los checkpoints?".
+
+Comando ~óptimo:
+
+```bash
+OMP_NUM_THREADS=$(nproc) ./simuleta --workers $(nproc) --checkpoint-interval 5 --checkpoint-dir /dev/shm/ --duration 20 --p 2048
 ```
-strace -e openat ./simuleta --workers 12
-GOMAXPROCS=12 ./simuleta --workers 12 --checkpoint-interval 5 --checkpoint-dir /dev/shm/ --duration 20 --p 2048
-```
-
 
 ## Ejecutar el Benchmark
 
@@ -38,4 +56,6 @@ Si quieres correr pruebas automatizadas con distintos tamaños de memoria (`p`) 
 ./run_benchmark.sh
 ```
 
-Esto generará un archivo `results.csv` con los OPS (operaciones por segundo) para cada tamaño de problema testeado.
+Corre un job por core físico (evita hermanos SMT, que comparten L1/L2), cada uno pineado con `taskset`. Imprime el CSV por pantalla y lo guarda en `results.csv` con columnas `p,ops` (OPS como número plano). Tarda unos 20 segundos en un equipo de 6 cores.
+
+Los jobs en paralelo siguen compartiendo la L3, así que los valores de `p` grandes (los que superan la L2) salen algo pesimistas.

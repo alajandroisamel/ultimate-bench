@@ -16,11 +16,11 @@ Puedes ejecutar el simulador directamente. Las flags o opciones más importantes
 
 - `-duration`: Duración de la simulación en segundos (por defecto `10`).
 - `-workers`: Cantidad de rutinas/workers concurrentes a ejecutar (por defecto `1`).
-- `-size`: Tamaño del problema o arreglo por iteración. Afecta directamente los saltos de memoria y los posibles *cache misses* (por defecto `8192`).
+- `-size`: Tamaño del problema o arreglo por iteración. Afecta directamente los saltos de memoria y los posibles *cache misses* (por defecto `65536`, 512 KB: no entra en la L1).
 - `-checkpoint-dir`: Directorio donde se guardarán los checkpoints (por defecto `.tmp/` dentro del directorio actual).
 - `-checkpoint-interval`: Cada cuántos segundos hacer un checkpoint a disco (por defecto `2`).
 - `-v`, `-vv`, `-vvv`: Modo verboso, acumulable (también vale `-v -v`):
-  - `-v` (info): Pid, tamaño del problema, workers y threads (con el valor de `OMP_NUM_THREADS`).
+  - `-v` (info): Pid y threads (con el valor de `OMP_NUM_THREADS`). El tamaño del problema y la cantidad de workers se muestran siempre.
   - `-vv` (debug): además, la configuración de checkpoints (directorio e intervalo) y los logs de las barreras de sincronización.
   - `-vvv` (trace): además, por cada worker y checkpoint, el tiempo de espera en cada barrera, de `write` y de `fsync`.
 

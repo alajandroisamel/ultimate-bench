@@ -25,9 +25,9 @@ Ratios medidos en un Ryzen 5 1600 de 6 cores y 12 threads; en otra máquina camb
 |---|---------|----------------|----------------|
 | 1 | `./simuleta` | nada (línea base) | 1× |
 | 2 | `./simuleta --workers $(nproc)` | **trampa:** no mejora, incluso empeora | ~0.8× |
-| 3 | `OMP_NUM_THREADS=$(nproc) ./simuleta --workers $(nproc)` | puede usar todos los cores | ~8× |
+| 3 | `OMP_NUM_THREADS=$(nproc) ./simuleta --workers $(nproc)` | puede usar todos los cores | ~5.5× |
 | 4 | `… --checkpoint-dir /dev/shm --checkpoint-interval 5` | checkpoints a RAM y menos seguido | ~10× |
-| 5 | `… --size 2048` | el problema entra en L1 | ~12× |
+| 5 | `… --size 2048` | el problema entra en L1 | ~17× |
 
 Comando final:
 
@@ -82,7 +82,7 @@ Los demás campos (`spinningthreads`, `needspinning`, `idlethreads`, `schedticks
 
 **Paso 4 → 5 (caché)**
 - `lscpu -C` y la tabla de arriba.
-- `perf stat -e cache-misses,L1-dcache-load-misses ./simuleta --size 8192 --duration 5` contra `--size 2048` (si `perf` está instalado).
+- `perf stat -e cache-misses,L1-dcache-load-misses ./simuleta --size 65536 --duration 5` contra `--size 2048` (si `perf` está instalado).
 - `./run_benchmark.sh` muestra la curva completa (~20 s).
 
 ## "¿Por qué no usás `--disable-checkpoints`?"

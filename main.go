@@ -60,7 +60,7 @@ func main() {
 	disableCheckpoints := flag.Bool("disable-checkpoints", false, "Deshabilitar por completo la escritura de checkpoints")
 	var verbose verbosity
 	flag.Var(&verbose, "v", "Modo verboso, repetible: -v info, -vv debug, -vvv trace")
-	p := flag.Int("size", 8192, "Tamaño del problema (elementos del arreglo por iteración)")
+	p := flag.Int("size", 65536, "Tamaño del problema (elementos del arreglo por iteración)")
 
 	// Opciones falsas (placeholders para dar realismo al help)
 	_ = flag.String("engine", "default", "Motor de simulación a utilizar (default, quantum, fluid-dynamics, monte-carlo)")
@@ -94,10 +94,10 @@ func main() {
 	flag.CommandLine.Parse(expandVerbosity(os.Args[1:]))
 
 	fmt.Printf("Iniciando simulación\n")
+	fmt.Printf("Tamaño del problema (size): %d\n", *p)
+	fmt.Printf("Cantidad de workers: %d\n", *workers)
 	if verbose >= 1 {
 		fmt.Printf("Pid: %d\n", os.Getpid())
-		fmt.Printf("Tamaño del problema (size): %d\n", *p)
-		fmt.Printf("Cantidad de workers: %d\n", *workers)
 		if ompEnv == "" {
 			fmt.Printf("Threads: %d (OMP_NUM_THREADS no definida, usando el valor por defecto)\n", threads)
 		} else {

@@ -73,8 +73,9 @@ Detalle curioso: la **primera** línea (`SCHED 0ms`) dice `gomaxprocs=12` inclus
 Los demás campos (`spinningthreads`, `needspinning`, `idlethreads`, `schedticks`) se pueden ignorar en la charla.
 
 **Paso 3 → 4 (checkpoints)**
-- `strace -f -e trace=openat,fsync -T -p $(pgrep simuleta)`: se ve dónde escribe (`.tmp/checkpoint_worker_*.tmp`) y cuánto tarda cada `fsync`.
-- `strace -f -c -p $(pgrep simuleta)` (cortar con Ctrl-C): `fsync` y `write` dominan el tiempo de syscalls.
+- `strace -f -e signal=none -e trace=openat,fsync -T -p $(pgrep simuleta)`: se ve dónde escribe (`.tmp/checkpoint_worker_*.tmp`) y cuánto tarda cada `fsync`.
+- `strace -f -e signal=none -c -p $(pgrep simuleta)` (cortar con Ctrl-C): `fsync` y `write` dominan el tiempo de syscalls.
+- El `-e signal=none` oculta los `SIGURG`: es el scheduler de Go interrumpiendo goroutines que llevan más de 10 ms corriendo (preempción). Es normal.
 - `iostat --human 1`: sube en cada checkpoint y desaparece con `/dev/shm`.
 - `htop`: todos los cores caen juntos durante el checkpoint (las barreras hacen que todos esperen al más lento).
 - `-vv` muestra dónde y cada cuánto escribe los checkpoints, más los logs de las barreras. `-vvv` agrega por worker cuánto tardó cada fase: si `fsync` domina, el problema es el disco; si `barrera1`/`barrera2` son altos, hay workers esperando al más lento.

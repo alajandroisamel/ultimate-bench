@@ -19,6 +19,23 @@ import (
 
 const CheckpointSizeBytes = 50 * 1024 * 1024 // 50MB por defecto, ajustable a mano
 
+// Pasos de la cadena de cómputo de updateBoundary. Define el overhead fijo por iteración
+// y, con eso, a partir de qué tamaño se amortiza.
+const BoundarySteps = 1000
+
+// boundarySink evita que el compilador elimine updateBoundary
+var boundarySink float64
+
+// updateBoundary simula el costo fijo de cada paso de tiempo (actualizar las condiciones
+// de contorno). Es una cadena dependiente: cada paso necesita el resultado del anterior,
+// así que el tiempo es fijo y no se puede paralelizar dentro del core.
+func updateBoundary(x float64) float64 {
+	for i := 0; i < BoundarySteps; i++ {
+		x = x*0.9999999 + 0.0000001
+	}
+	return x
+}
+
 func main() {
 	// Cantidad de threads tomada de OMP_NUM_THREADS (suena a HPC genérico, no a Go).
 	// Si no está definida o es inválida, limitarlo a 1. GOMAXPROCS se ignora a propósito.
@@ -43,7 +60,7 @@ func main() {
 	disableCheckpoints := flag.Bool("disable-checkpoints", false, "Deshabilitar por completo la escritura de checkpoints")
 	var verbose verbosity
 	flag.Var(&verbose, "v", "Modo verboso, repetible: -v info, -vv debug, -vvv trace")
-	p := flag.Int("p", 8192, "Tamaño del problema (elementos del arreglo por iteración)")
+	p := flag.Int("size", 8192, "Tamaño del problema (elementos del arreglo por iteración)")
 
 	// Opciones falsas (placeholders para dar realismo al help)
 	_ = flag.String("engine", "default", "Motor de simulación a utilizar (default, quantum, fluid-dynamics, monte-carlo)")
@@ -79,7 +96,7 @@ func main() {
 	fmt.Printf("Iniciando simulación\n")
 	if verbose >= 1 {
 		fmt.Printf("Pid: %d\n", os.Getpid())
-		fmt.Printf("Tamaño del problema (p): %d\n", *p)
+		fmt.Printf("Tamaño del problema (size): %d\n", *p)
 		fmt.Printf("Cantidad de workers: %d\n", *workers)
 		if ompEnv == "" {
 			fmt.Printf("Threads: %d (OMP_NUM_THREADS no definida, usando el valor por defecto)\n", threads)
@@ -300,7 +317,11 @@ func worker(ctx context.Context, id int, p int, checkpointDir string, disableChe
 		}
 		
 		// Prevenir optimización total del compilador
-		_ = sum 
+		_ = sum
+
+		// Costo fijo por paso de tiempo (condiciones de contorno), independiente del tamaño
+		// y sin contar como OPS: con problemas muy chicos domina y el rendimiento cae
+		boundarySink = updateBoundary(sum)
 
 		// Track ops. Cada loop hace `p` operaciones
 		totalOps.Add(uint64(p))

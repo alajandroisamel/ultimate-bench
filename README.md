@@ -16,7 +16,7 @@ Puedes ejecutar el simulador directamente. Las flags o opciones más importantes
 
 - `-duration`: Duración de la simulación en segundos (por defecto `10`).
 - `-workers`: Cantidad de rutinas/workers concurrentes a ejecutar (por defecto `1`).
-- `-p`: Tamaño del problema o arreglo por iteración. Afecta directamente los saltos de memoria y los posibles *cache misses* (por defecto `8192`).
+- `-size`: Tamaño del problema o arreglo por iteración. Afecta directamente los saltos de memoria y los posibles *cache misses* (por defecto `8192`).
 - `-checkpoint-dir`: Directorio donde se guardarán los checkpoints (por defecto `.tmp/` dentro del directorio actual).
 - `-checkpoint-interval`: Cada cuántos segundos hacer un checkpoint a disco (por defecto `2`).
 - `-v`, `-vv`, `-vvv`: Modo verboso, acumulable (también vale `-v -v`):
@@ -45,17 +45,17 @@ Ver [MACHETE.md](MACHETE.md): los pasos de la demo, qué herramienta mostrar en 
 Comando ~óptimo:
 
 ```bash
-OMP_NUM_THREADS=$(nproc) ./simuleta --workers $(nproc) --checkpoint-interval 5 --checkpoint-dir /dev/shm/ --duration 20 --p 2048
+OMP_NUM_THREADS=$(nproc) ./simuleta --workers $(nproc) --checkpoint-interval 5 --checkpoint-dir /dev/shm/ --duration 20 --size 2048
 ```
 
 ## Ejecutar el Benchmark
 
-Si quieres correr pruebas automatizadas con distintos tamaños de memoria (`p`) para ver la caída de rendimiento por las cachés L1/L2/L3, puedes usar el script de bash incluido (requiere GNU parallel):
+Si quieres correr pruebas automatizadas con distintos tamaños de memoria (`--size`) para ver la caída de rendimiento por las cachés L1/L2/L3, puedes usar el script de bash incluido (requiere GNU parallel):
 
 ```bash
 ./run_benchmark.sh
 ```
 
-Corre un job por core físico (evita hermanos SMT, que comparten L1/L2), cada uno pineado con `taskset`. Imprime el CSV por pantalla y lo guarda en `results.csv` con columnas `p,ops` (OPS como número plano). Tarda unos 20 segundos en un equipo de 6 cores.
+Corre un job por core físico (evita hermanos SMT, que comparten L1/L2), cada uno pineado con `taskset`. Imprime el CSV por pantalla y lo guarda en `results.csv` con columnas `size,ops` (OPS como número plano). Tarda unos 20 segundos en un equipo de 6 cores.
 
-Los jobs en paralelo siguen compartiendo la L3, así que los valores de `p` grandes (los que superan la L2) salen algo pesimistas.
+Los jobs en paralelo siguen compartiendo la L3, así que los valores de `--size` grandes (los que superan la L2) salen algo pesimistas.

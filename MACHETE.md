@@ -9,9 +9,9 @@ df -h /dev/shm        # que tenga > N × 50 MB libres (en Docker suele ser 64 MB
 ./simuleta --duration 5   # medir la línea base de ESTA máquina
 ```
 
-**Cuánto vale `-p` para cada caché:** `p = bytes / 8`. Elegí un `p` que entre holgado en la L1d:
+**Cuánto vale `--size` para cada caché:** `size = bytes / 8`. Elegí un `size` que entre holgado en la L1d:
 
-| Caché | Ejemplo 32 KB L1d / 512 KB L2 | `p` que entra |
+| Caché | Ejemplo 32 KB L1d / 512 KB L2 | `size` que entra |
 |-------|-------------------------------|---------------|
 | L1d   | 32 KB                         | ≤ 4096 → usar **2048** |
 | L2    | 512 KB                        | ≤ 65536 |
@@ -27,12 +27,12 @@ Ratios medidos en un Ryzen 5 1600 de 6 cores y 12 threads; en otra máquina camb
 | 2 | `./simuleta --workers $(nproc)` | **trampa:** no mejora, incluso empeora | ~0.8× |
 | 3 | `OMP_NUM_THREADS=$(nproc) ./simuleta --workers $(nproc)` | puede usar todos los cores | ~8× |
 | 4 | `… --checkpoint-dir /dev/shm --checkpoint-interval 5` | checkpoints a RAM y menos seguido | ~10× |
-| 5 | `… --p 2048` | el problema entra en L1 | ~13× |
+| 5 | `… --size 2048` | el problema entra en L1 | ~12× |
 
 Comando final:
 
 ```bash
-OMP_NUM_THREADS=$(nproc) ./simuleta --workers $(nproc) --checkpoint-dir /dev/shm --checkpoint-interval 5 --p 2048 --duration 20
+OMP_NUM_THREADS=$(nproc) ./simuleta --workers $(nproc) --checkpoint-dir /dev/shm --checkpoint-interval 5 --size 2048 --duration 20
 ```
 
 ## Qué mostrar en cada paso
@@ -82,7 +82,7 @@ Los demás campos (`spinningthreads`, `needspinning`, `idlethreads`, `schedticks
 
 **Paso 4 → 5 (caché)**
 - `lscpu -C` y la tabla de arriba.
-- `perf stat -e cache-misses,L1-dcache-load-misses ./simuleta --p 8192 --duration 5` contra `--p 2048` (si `perf` está instalado).
+- `perf stat -e cache-misses,L1-dcache-load-misses ./simuleta --size 8192 --duration 5` contra `--size 2048` (si `perf` está instalado).
 - `./run_benchmark.sh` muestra la curva completa (~20 s).
 
 ## "¿Por qué no usás `--disable-checkpoints`?"

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Arreglo de tamaños de problema (p) a evaluar.
+# Arreglo de tamaños de problema (--size) a evaluar.
 P_VALUES=(2 4 8 16 32 64 128 256 512 1024 2048 4096 8192 16384 32768 65536 131072 262144 524288 1048576)
 
 # Un CPU lógico por core físico: si dos jobs caen en hermanos SMT comparten L1/L2 y ensucian la curva.
@@ -18,9 +18,10 @@ run_sim() {
     local core=${cpus[$((slot - 1))]}
 
     # Ejecuta el binario forzando 1 thread (OMP_NUM_THREADS=1), pineado a un core específico con taskset
-    output=$(taskset -c "$core" env OMP_NUM_THREADS=1 ./simuleta --disable-checkpoints --duration 5 --p "$p" 2>&1)
+    output=$(taskset -c "$core" env OMP_NUM_THREADS=1 ./simuleta --disable-checkpoints --duration 5 --size "$p" 2>&1)
 
     # Extraer "Operaciones por Segundo (OPS): 1.23 G" y pasarlo a número plano (1230000000)
+    # ops=$(echo "$output" | grep "Operaciones por Segundo" | cut -d' ' -f5,6)
     ops=$(echo "$output" | grep "Operaciones por Segundo" | awk -F': ' '{
         split($2, a, " ")
         mult = (a[2] == "G") ? 1e9 : (a[2] == "M") ? 1e6 : (a[2] == "K") ? 1e3 : 1
@@ -39,6 +40,6 @@ export -f run_sim
 # --keep-order : mantiene el orden de salida igual al de entrada
 # {%} es el slot de parallel (de 1 a $JOBS)
 {
-    echo "p,ops"
+    echo "size,ops"
     printf "%s\n" "${P_VALUES[@]}" | parallel -j "$JOBS" --keep-order run_sim {} {%}
 } | tee results.csv
